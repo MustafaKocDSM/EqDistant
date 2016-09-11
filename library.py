@@ -192,51 +192,116 @@ class Library:
         else:
             ft_ketiga = None
             geom_eq = None
-            print "Pencarian Selesai"
         return ft_ketiga, geom_eq
 
-    def proses_hdp(self, ttk_awal_a, ttk_awal_b, ttk_akhir_a, ttk_akhit_b, list_ft):
-        # --- Persiapan hasil
-        list_geom_eq = []
-        list_ttk_cc = []
-        list_geom_garis_kontrol = []
-        # --- Perhitungan variabel
+    def layer_titik_konstruksi(self, featlist_ttk_konstruksi):
+        '''fungsi ini untuk membuat fitur titik konstruksi '''
+        lay_ttk_kons = QgsVectorLayer("Point?crs=" + self.crs, "Construction Point", "memory")
+        prov_lay_ttk_kons = lay_ttk_kons.dataProvider()
+        prov_lay_ttk_kons.addAttributes([QgsField("id",QVariant.String),QgsField("x",QVariant.Int), QgsField("y", QVariant.Int)])
+        prov_lay_ttk_kons.addFeatures(featlist_ttk_konstruksi)
+        lay_ttk_kons.startEditing()
+        lay_ttk_kons.commitChanges()
+        return lay_ttk_kons
+
+    def layer_titik_circumcenter(self, featlist_ttk_circumcenter):
+        lay_ttk_circumcenter = QgsVectorLayer("Point?crs=" + self.crs, "Equidistant Point", "memory")
+        prov_lay_ttk_cc = lay_ttk_circumcenter.dataProvider()
+        prov_lay_ttk_cc.addAttributes([QgsField("id",QVariant.String),QgsField("x",QVariant.Int), QgsField("y", QVariant.Int)])
+        prov_lay_ttk_cc.addFeatures(featlist_ttk_circumcenter)
+        lay_ttk_circumcenter.startEditing()
+        lay_ttk_circumcenter.commitChanges()
+        return lay_ttk_circumcenter
+
+    def proses_hdp(self, ttk_awal_a, ttk_awal_b, ttk_akhir_a, ttk_akhir_b, list_ft):
+        # /////////////// PERSIAPAN VARIABEL
+        featlist_titik_circumcenter = []
+        featlist_titik_konstruksi = []
+        featlist_garis_konstruksi = []
+        id_circumcenter = 1
+        id_ttk_konstruksi_a = 1
+        id_ttk_konstruksi_b = 1
+        # ------
+        feat_ttk_iter_a = QgsFeature()
+        feat_ttk_iter_a.setGeometry(QgsGeometry.fromPoint(ttk_awal_a))
+        feat_ttk_iter_a.setAttributes(["A"+str(id_ttk_konstruksi_a),
+                                       ttk_awal_a.x(),
+                                       ttk_awal_a.y()])
+        featlist_titik_konstruksi.append(feat_ttk_iter_a)
+        # ------
+        feat_ttk_iter_b = QgsFeature()
+        feat_ttk_iter_b.setGeometry(QgsGeometry.fromPoint(ttk_awal_b))
+        feat_ttk_iter_b.setAttributes(["B"+str(id_ttk_konstruksi_b),
+                                       ttk_awal_b.x(),
+                                       ttk_awal_b.y()])
+        featlist_titik_konstruksi.append(feat_ttk_iter_b)
+        # /////////////// PERHITUNGAN VARIABEL
         ttk_tgh_aw = self.cari_titik_tengah(ttk_awal_a, ttk_awal_b)
-        ttk_tgh_ak = self.cari_titik_tengah(ttk_akhir_a, ttk_akhit_b)
+        ttk_tgh_ak = self.cari_titik_tengah(ttk_akhir_a, ttk_akhir_b)
         jarak_tgh = math.sqrt(ttk_tgh_aw.sqrDist(ttk_tgh_ak))
         sisi_ak = self.cari_sisi_garis(ttk_awal_a, ttk_awal_b, ttk_tgh_ak)
-        # --- Iterasi
-        ttk_iter_a = ttk_awal_a
-        ttk_iter_b = ttk_awal_b
-        garis_tgk = self.buat_garis_tgk_lurus(jarak_tgh, ttk_iter_a, ttk_iter_b, ttk_tgh_ak)
-        ft_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a, ttk_iter_b, sisi_ak, list_ft, garis_tgk)
-        while ft_ketiga is not None:
-            ttk_ketiga = ft_ketiga.geometry().asPoint()
-            ttk_cc = self.hitung_circumcenter(ttk_iter_a, ttk_iter_b, ttk_ketiga)
-            #sisi_cc = self.cari_sisi_garis(ttk_awal_a, ttk_awal_b,ttk_cc)
-            geom_garis_kontrol = QgsGeometry.fromMultiPolyline([[ttk_cc, ttk_iter_a],[ttk_cc, ttk_iter_b], [ttk_cc, ttk_ketiga]])
-            list_geom_eq.append(geom_eq)
-            list_ttk_cc.append(ttk_cc)
-            list_geom_garis_kontrol.append(geom_garis_kontrol)
-            # --- Penentuan titik berikutnya
-            if ft_ketiga["ket"] == "A":
-                ttk_iter_a = ttk_ketiga
-            elif ft_ketiga["ket"] == "B":
-                ttk_iter_b = ttk_ketiga
-            else:
-                raise ValueError('Attribut Error')
-            ttk_tgh_iter = self.cari_titik_tengah(ttk_iter_a, ttk_iter_b)
-            jarak_tgh = math.sqrt(ttk_tgh_iter.sqrDist(ttk_tgh_ak))
-            garis_tgk = self.buat_garis_tgk_lurus(jarak_tgh, ttk_iter_a, ttk_iter_b, ttk_tgh_ak)
-            ft_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a, ttk_iter_b, sisi_ak, list_ft, garis_tgk)
-        else:
-            print "Proses Selesai"
-        list_geom_cc = []
-        for ttk in list_ttk_cc:
-            g = QgsGeometry.fromPoint(ttk)
-            list_geom_cc.append(g)
-        return list_geom_eq, list_geom_cc, list_geom_garis_kontrol
+        ttk_iter_a = feat_ttk_iter_a.geometry().asPoint()
+        ttk_iter_b = feat_ttk_iter_b.geometry().asPoint()
+        garis_tegak = self.buat_garis_tgk_lurus(jarak_tgh, ttk_iter_a, ttk_iter_b, ttk_tgh_ak)
+        feat_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a, ttk_iter_b, sisi_ak, list_ft, garis_tegak)
+        while feat_ketiga is not None:
+            ttk_ketiga = feat_ketiga.geometry().asPoint()
+            ttk_circumcenter = self.hitung_circumcenter(ttk_iter_a, ttk_iter_b, ttk_ketiga)
+            feat_ttk_circumcenter = QgsFeature()
+            garis_kontrol_a = QgsFeature()
+            garis_kontrol_b = QgsFeature()
+            garis_kontrol_c = QgsFeature()
+            feat_ttk_circumcenter.setGeometry(QgsGeometry().fromPoint(ttk_circumcenter))
+            feat_ttk_circumcenter.setAttributes([str(id_circumcenter), ttk_circumcenter.x(), ttk_circumcenter.y()])
+            featlist_titik_circumcenter.append(feat_ttk_circumcenter)
 
+            g_garis_kontrol_a = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_iter_a])
+            g_garis_kontrol_b = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_iter_b])
+            garis_kontrol_a.setGeometry(g_garis_kontrol_a)
+            garis_kontrol_a.setAttributes([str(id_circumcenter)+"a",
+                                           g_garis_kontrol_a.length(),
+                                           feat_ttk_iter_a[0],
+                                           id_circumcenter])
+            garis_kontrol_b.setGeometry(g_garis_kontrol_b)
+            garis_kontrol_b.setAttributes([str(id_circumcenter)+"b",
+                                           g_garis_kontrol_b.length(),
+                                           feat_ttk_iter_b[0],
+                                           id_circumcenter])
+            g_garis_kontrol_c = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_ketiga])
+            garis_kontrol_c.setGeometry(g_garis_kontrol_c)
+            if feat_ketiga["ket"]=="A":
+                feat_ttk_iter_a = feat_ketiga
+                id_ttk_konstruksi_a += 1
+                feat_ttk_iter_a.setAttributes(["A"+str(id_ttk_konstruksi_a), ttk_ketiga.x(), ttk_ketiga.y()])
+                featlist_titik_konstruksi.append(feat_ttk_iter_a)
+                garis_kontrol_c.setAttributes([str(id_circumcenter)+"c",
+                                           g_garis_kontrol_c.length(),
+                                           feat_ttk_iter_a[0],
+                                           id_circumcenter])
+                ttk_iter_a = feat_ttk_iter_a.geometry().asPoint()
+            elif feat_ketiga["ket"]=="B":
+                feat_ttk_iter_b = feat_ketiga
+                id_ttk_konstruksi_b += 1
+                feat_ttk_iter_b.setAttributes(["B"+str(id_ttk_konstruksi_b), ttk_ketiga.x(), ttk_ketiga.y()])
+                featlist_titik_konstruksi.append(feat_ttk_iter_b)
+                garis_kontrol_c.setAttributes([str(id_circumcenter)+"c",
+                                           g_garis_kontrol_c.length(),
+                                           feat_ttk_iter_b[0],
+                                           id_circumcenter])
+                ttk_iter_b = feat_ttk_iter_b.geometry().asPoint()
+            else:
+                raise ValueError("Attribute Error")
+            featlist_garis_konstruksi.append(garis_kontrol_a)
+            featlist_garis_konstruksi.append(garis_kontrol_b)
+            featlist_garis_konstruksi.append(garis_kontrol_c)
+            id_circumcenter += 1
+            ttk_tgh_iter = self.cari_titik_tengah(ttk_iter_a, ttk_iter_b)
+            jarak_tgh_iter = math.sqrt(ttk_tgh_iter.sqrDist(ttk_tgh_ak))
+            garis_tegak_iter = self.buat_garis_tgk_lurus(jarak_tgh_iter, ttk_iter_a, ttk_iter_b, ttk_tgh_ak)
+            feat_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a, ttk_iter_b, sisi_ak, list_ft, garis_tegak_iter)
+        else:
+            print("Proses Selesai")
+        return featlist_titik_circumcenter, featlist_titik_konstruksi, featlist_garis_konstruksi
     # Adjacent
     def buat_titik_tgk_lurus(self, jarak, ttk_a, ttk_b, sisi_garis):
         ttk_tgh = self.cari_titik_tengah(ttk_a, ttk_b)
@@ -254,18 +319,34 @@ class Library:
         return QgsPoint(x_tgk, y_tgk)
 
     def proses_sb(self, ttk_awal_a, ttk_awal_b, ttk_akhir, list_ft):
-        # --- Persiapan hasil
-        list_geom_eq = []
-        list_geom_garis_kontrol = []
-        list_titik_cc = []
-        # --- Perhitungan variabel
+        # /////////////// PERSIAPAN VARIABEL
+        featlist_titik_circumcenter = []
+        featlist_titik_konstruksi = []
+        featlist_garis_konstruksi = []
+        id_circumcenter = 1
+        id_ttk_konstruksi_a = 1
+        id_ttk_konstruksi_b = 1
+        # ------
+        feat_ttk_iter_a = QgsFeature()
+        feat_ttk_iter_a.setGeometry(QgsGeometry.fromPoint(ttk_awal_a))
+        feat_ttk_iter_a.setAttributes(["A"+str(id_ttk_konstruksi_a),
+                                       ttk_awal_a.x(),
+                                       ttk_awal_a.y()])
+        featlist_titik_konstruksi.append(feat_ttk_iter_a)
+        # ------
+        feat_ttk_iter_b = QgsFeature()
+        feat_ttk_iter_b.setGeometry(QgsGeometry.fromPoint(ttk_awal_b))
+        feat_ttk_iter_b.setAttributes(["B"+str(id_ttk_konstruksi_b),
+                                       ttk_awal_b.x(),
+                                       ttk_awal_b.y()])
+        featlist_titik_konstruksi.append(feat_ttk_iter_b)
+        # ////////////////// PERHITUNGAN VARIABEL
         ttk_tgh = self.cari_titik_tengah(ttk_awal_a, ttk_awal_b)
         sisi_ak = self.cari_sisi_garis(ttk_awal_a, ttk_awal_b, ttk_akhir)
         jarak_tgh_aw = math.sqrt(ttk_tgh.sqrDist(ttk_akhir))
         jarak_tgh_o = self.jarak_klaim - jarak_tgh_aw
-        # --- Iterasi
-        ttk_iter_a = ttk_awal_a
-        ttk_iter_b = ttk_awal_b
+        ttk_iter_a = feat_ttk_iter_a.geometry().asPoint()
+        ttk_iter_b = feat_ttk_iter_b.geometry().asPoint()
         ttk_tgk_ak = self.buat_titik_tgk_lurus(jarak_tgh_aw,
                                                ttk_iter_a,
                                                ttk_iter_b,
@@ -274,42 +355,111 @@ class Library:
                                               ttk_iter_a,
                                               ttk_iter_b,
                                               -sisi_ak)
-        garis_tgk = QgsGeometry.fromPolyline([ttk_tgk_o, ttk_tgk_ak])
-        ft_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a,
-                                                    ttk_iter_b,
-                                                    sisi_ak,
-                                                    list_ft,
-                                                    garis_tgk)
-        while ft_ketiga is not None:
-            ttk_ketiga = ft_ketiga.geometry().asPoint()
-            ttk_cc = self.hitung_circumcenter(ttk_iter_a, ttk_iter_b, ttk_ketiga)
-            geom_garis_kontrol = QgsGeometry.fromMultiPolyline([[ttk_cc, ttk_iter_a], [ttk_cc, ttk_iter_b], [ttk_cc, ttk_ketiga]])
-            list_geom_eq.append(geom_eq)
-            list_titik_cc.append(ttk_cc)
-            list_geom_garis_kontrol.append(geom_garis_kontrol)
-            # --- Penentuan titik berikutnya
-            if ft_ketiga["ket"] == "A":
-                ttk_iter_a = ttk_ketiga
-            elif ft_ketiga["ket"] == "B":
-                ttk_iter_b = ttk_ketiga
-            ttk_tgh = self.cari_titik_tengah(ttk_iter_a, ttk_iter_b)
-            jarak_tgh_aw = math.sqrt(ttk_tgh.sqrDist(ttk_akhir))
-            ttk_tgk_ak = self.buat_titik_tgk_lurus(jarak_tgh_aw, ttk_iter_a, ttk_iter_b, sisi_ak)
-            garis_tgk = QgsGeometry.fromPolyline([ttk_cc, ttk_tgk_ak])
-            ft_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a,
-                                                        ttk_iter_b,
-                                                        sisi_ak,
-                                                        list_ft,
-                                                        garis_tgk)
+        grs_tegak = QgsGeometry().fromPolyline([ttk_tgk_o, ttk_tgk_ak])
+        feat_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a,
+                                                      ttk_iter_b,
+                                                      sisi_ak,
+                                                      list_ft,
+                                                      grs_tegak)
+        print "initialization complete"
+        while feat_ketiga is not None:
+            print "---------------"
+            print "starting iteration"
+            ttk_ketiga = feat_ketiga.geometry().asPoint()
+            ttk_circumcenter = self.hitung_circumcenter(ttk_iter_a, ttk_iter_b, ttk_ketiga)
+            feat_ttk_circumcenter = QgsFeature()
+            garis_kontrol_a = QgsFeature()
+            garis_kontrol_b = QgsFeature()
+            garis_kontrol_c = QgsFeature()
+            feat_ttk_circumcenter.setGeometry(QgsGeometry().fromPoint(ttk_circumcenter))
+            feat_ttk_circumcenter.setAttributes([str(id_circumcenter), ttk_circumcenter.x(), ttk_circumcenter.y()])
+            featlist_titik_circumcenter.append(feat_ttk_circumcenter)
+            #
+            g_garis_kontrol_a = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_iter_a])
+            garis_kontrol_a.setGeometry(g_garis_kontrol_a)
+            garis_kontrol_a.setAttributes([str(id_circumcenter)+"a",
+                                           g_garis_kontrol_a.length(),
+                                           feat_ttk_iter_a[0],
+                                           id_circumcenter])
+            g_garis_kontrol_b = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_iter_b])
+            garis_kontrol_b.setGeometry(g_garis_kontrol_b)
+            garis_kontrol_b.setAttributes([str(id_circumcenter)+"b",
+                                           g_garis_kontrol_b.length(),
+                                           feat_ttk_iter_b[0],
+                                           id_circumcenter])
+            g_garis_kontrol_c = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_ketiga])
+            garis_kontrol_c.setGeometry(g_garis_kontrol_c)
+            print "checking attribute"
+            if feat_ketiga["ket"] == "A":
+                feat_ttk_iter_a = feat_ketiga
+                id_ttk_konstruksi_a += 1
+                feat_ttk_iter_a.setAttributes(["A"+str(id_ttk_konstruksi_a), ttk_ketiga.x(), ttk_ketiga.y()])
+                featlist_titik_konstruksi.append(feat_ttk_iter_a)
+                garis_kontrol_c.setAttributes([str(id_circumcenter)+"c",
+                                           g_garis_kontrol_c.length(),
+                                           feat_ttk_iter_a[0],
+                                           id_circumcenter])
+                ttk_iter_a = feat_ttk_iter_a.geometry().asPoint()
+            elif feat_ketiga["ket"]=="B":
+                feat_ttk_iter_b = feat_ketiga
+                id_ttk_konstruksi_b += 1
+                feat_ttk_iter_b.setAttributes(["B"+str(id_ttk_konstruksi_b), ttk_ketiga.x(), ttk_ketiga.y()])
+                featlist_titik_konstruksi.append(feat_ttk_iter_b)
+                garis_kontrol_c.setAttributes([str(id_circumcenter)+"c",
+                                           g_garis_kontrol_c.length(),
+                                           feat_ttk_iter_b[0],
+                                           id_circumcenter])
+                ttk_iter_b = feat_ttk_iter_b.geometry().asPoint()
+            else:
+                raise ValueError("Attribute Error")
+            print "attribute checking complete"
+            featlist_garis_konstruksi.append(garis_kontrol_a)
+            featlist_garis_konstruksi.append(garis_kontrol_b)
+            featlist_garis_konstruksi.append(garis_kontrol_c)
+            id_circumcenter += 1
+            ttk_tgh_iter = self.cari_titik_tengah(ttk_iter_a, ttk_iter_b)
+            jarak_tgh_iter = math.sqrt(ttk_tgh_iter.sqrDist(ttk_akhir))
+            ttk_tgk_iter = self.buat_titik_tgk_lurus(jarak_tgh_iter,ttk_iter_a,ttk_iter_b,sisi_ak)
+            grs_tegak = QgsGeometry.fromPolyline([ttk_circumcenter, ttk_tgk_iter])
+            feat_ketiga, geom_eq = self.cari_fitur_ketiga(ttk_iter_a,
+                                                          ttk_iter_b,
+                                                          sisi_ak,
+                                                          list_ft,
+                                                          grs_tegak)
         else:
-            print "Proses selesai"
-        list_geom_cc = [QgsGeometry().fromPoint(pt) for pt in list_titik_cc]
-        # tambahkan titik terakhir ke list hasil
-        geom_ak = QgsGeometry.fromPoint(ttk_akhir)
-        list_geom_cc.append(geom_ak)
-        return list_geom_eq,list_geom_cc, list_geom_garis_kontrol
+            print "Proses Selesai"
+        feat_ttk_akhir = QgsFeature()
+        feat_ttk_akhir.setGeometry(QgsGeometry().fromPoint(ttk_akhir))
+        feat_ttk_akhir.setAttributes([str(id_circumcenter), ttk_circumcenter.x(), ttk_circumcenter.y()])
+        featlist_titik_circumcenter.append(feat_ttk_akhir)
+        return featlist_titik_circumcenter, featlist_titik_konstruksi, featlist_garis_konstruksi
 
     # Operasi Pembuatan Layer
+    def layer_titik(self, nama_layer, list_feat):
+        layer_titik = QgsVectorLayer("point?crs="+self.crs, nama_layer, "memory")
+        provider_layer = layer_titik.dataProvider()
+        provider_layer.addAttributes([QgsField("ID", QVariant.String),
+                                      QgsField("X", QVariant.Int),
+                                      QgsField("Y", QVariant.Int)
+                                      ])
+        provider_layer.addFeatures(list_feat)
+        layer_titik.startEditing()
+        layer_titik.commitChanges()
+        QgsMapLayerRegistry.instance().addMapLayer(layer_titik)
+
+    def layer_garis(self, nama_layer, list_feat):
+        layer_garis_kons = QgsVectorLayer("Linestring?crs="+self.crs, nama_layer, "memory")
+        provider_layer = layer_garis_kons.dataProvider()
+        provider_layer.addAttributes([QgsField("ID", QVariant.String),
+                                      QgsField("Length", QVariant.Int),
+                                      QgsField("id_cons_pt", QVariant.String),
+                                      QgsField("id_eq_pt", QVariant.String)
+                                      ])
+        provider_layer.addFeatures(list_feat)
+        layer_garis_kons.startEditing()
+        layer_garis_kons.commitChanges()
+        QgsMapLayerRegistry.instance().addMapLayer(layer_garis_kons)
+
     def buat_layer_titik(self, list_geom_titik):
         layer_titik = QgsVectorLayer("point?crs="+self.crs, "Equidistant Point", "memory")
         provider_layer = layer_titik.dataProvider()

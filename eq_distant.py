@@ -255,16 +255,22 @@ class EqDistant:
         t_awal_b = self.lib.titik_pada_garis(self.dlg.start_b, list_geom_b)
         t_akhr_b = self.lib.titik_pada_garis(self.dlg.end_b, list_geom_b)
         # iterasi
-        list_g_eq, list_g_cc, list_g_grs_k = self.lib.proses_hdp(t_awal_a,
-                                                                 t_awal_b,
-                                                                 t_akhr_a,
-                                                                 t_akhr_b,
-                                                                 list_ft)
-        self.lib.konversi_titik_ke_garis(list_g_cc)
+        fl_ttk_cc, fl_ttk_kons, fl_grs_kons = self.lib.proses_hdp(t_awal_a,
+                                                                       t_awal_b,
+                                                                       t_akhr_a,
+                                                                       t_akhr_b,
+                                                                       list_ft
+                                                                       )
+        geomlist_ttk_cc = []
+        for feat in fl_ttk_cc:
+            geom = feat.geometry()
+            geomlist_ttk_cc.append(geom)
+        self.lib.konversi_titik_ke_garis(geomlist_ttk_cc)
         if self.dlg.checkBox_cLine.isChecked():
-            self.lib.buat_layer_garis_k(list_g_grs_k)
+            self.lib.layer_garis("Construction Line", fl_grs_kons)
+            self.lib.layer_titik("Construction Point", fl_ttk_kons)
         if self.dlg.checkBox_titikEq.isChecked():
-            self.lib.buat_layer_titik(list_g_cc)
+            self.lib.layer_titik("Equidistant Point", fl_ttk_cc)
 
     def sblh_deploy(self):
         list_geom_a = [feat.geometry() for feat in self.list_feat_garis_a]
@@ -289,15 +295,29 @@ class EqDistant:
             ttk_akhir = g_akhir.asPoint()
         jarak_klaim = int(self.dlg.adj_claim_dist.text())*1852
         self.adj_lib = Library(self.layer_a, self.layer_b, 10, jarak_klaim)
-        list_g_eq, list_g_cc, list_g_gk = self.adj_lib.proses_sb(t_awal_a,
-                                                                 t_awal_b,
-                                                                 ttk_akhir,
-                                                                 list_feat)
-        self.adj_lib.konversi_titik_ke_garis(list_g_cc)
+        #list_g_eq, list_g_cc, list_g_gk = self.adj_lib.proses_sb(t_awal_a,
+        #                                                         t_awal_b,
+        #                                                         ttk_akhir,
+        #                                                         list_feat)
+        #self.adj_lib.konversi_titik_ke_garis(list_g_cc)
+        fl_ttk_cc, fl_ttk_kons, fl_grs_kons = self.adj_lib.proses_sb(t_awal_a,
+                                                                     t_awal_b,
+                                                                     ttk_akhir,
+                                                                     list_feat)
+        #if self.dlg.checkBox_cLine.isChecked():
+        #    self.lib.buat_layer_garis_k(list_g_gk)
+        #if self.dlg.checkBox_titikEq.isChecked():
+        #    self.lib.buat_layer_titik(list_g_cc)
+        geomlist_ttk_cc = []
+        for feat in fl_ttk_cc:
+            geom = feat.geometry()
+            geomlist_ttk_cc.append(geom)
+        self.lib.konversi_titik_ke_garis(geomlist_ttk_cc)
         if self.dlg.checkBox_cLine.isChecked():
-            self.lib.buat_layer_garis_k(list_g_gk)
+            self.lib.layer_garis("Construction Line", fl_grs_kons)
+            self.lib.layer_titik("Construction Point", fl_ttk_kons)
         if self.dlg.checkBox_titikEq.isChecked():
-            self.lib.buat_layer_titik(list_g_cc)
+            self.lib.layer_titik("Equidistant Point", fl_ttk_cc)
 
     def run(self):
         # Kosongkan input pada combo box
